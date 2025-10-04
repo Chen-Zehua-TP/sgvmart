@@ -29,7 +29,8 @@ export default function Login() {
   return (
     <div className="max-w-md mx-auto">
       <div className="bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-center mb-6">Login</h1>
+        <h1 className="text-3xl font-bold text-center mb-2 text-gray-900">Login</h1>
+        <p className="text-center text-gray-600 mb-6">Sign in to your account</p>
 
         {error && (
           <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
@@ -37,7 +38,7 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Email</label>
+            <label className="block text-sm font-semibold mb-2 text-gray-700">Email</label>
             <input
               type="email"
               required
@@ -45,12 +46,13 @@ export default function Login() {
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
               }
-              className="w-full border rounded-lg px-4 py-2"
+              placeholder="Enter your email"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Password</label>
+            <label className="block text-sm font-semibold mb-2 text-gray-700">Password</label>
             <input
               type="password"
               required
@@ -58,7 +60,8 @@ export default function Login() {
               onChange={(e) =>
                 setFormData({ ...formData, password: e.target.value })
               }
-              className="w-full border rounded-lg px-4 py-2"
+              placeholder="Enter your password"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 

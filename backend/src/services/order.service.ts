@@ -1,6 +1,5 @@
 import prisma from '../config/database';
 import { AppError } from '../middleware/errorHandler';
-import { clearCart } from './cart.service';
 
 export const getUserOrders = async (userId: string) => {
   const orders = await prisma.order.findMany({

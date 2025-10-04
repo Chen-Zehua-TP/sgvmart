@@ -4,7 +4,7 @@ import { AppError } from '../middleware/errorHandler';
 import * as categoryService from '../services/category.service';
 
 export const getAllCategories = async (
-  req: Request,
+  _req: Request,
   res: Response
 ): Promise<void> => {
   try {
