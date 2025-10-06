@@ -134,3 +134,39 @@ export const clearCart = async (
     res.status(500).json({ error: 'Failed to clear cart' });
   }
 };
+
+export const addExternalProductToCart = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ errors: errors.array() });
+      return;
+    }
+
+    if (!req.user) {
+      throw new AppError('Not authenticated', 401);
+    }
+
+    const { productName, productUrl, productPrice, productImageUrl, quantity } = req.body;
+
+    const cartItem = await cartService.addExternalProductToCart(
+      req.user.id,
+      productName,
+      productUrl,
+      productPrice,
+      productImageUrl,
+      quantity || 1
+    );
+
+    res.status(201).json({ cartItem });
+  } catch (error) {
+    if (error instanceof AppError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
+    res.status(500).json({ error: 'Failed to add external product to cart' });
+  }
+};

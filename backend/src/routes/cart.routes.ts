@@ -6,6 +6,7 @@ import {
   updateCartItem,
   removeFromCart,
   clearCart,
+  addExternalProductToCart,
 } from '../controllers/cart.controller';
 import { authenticate } from '../middleware/auth.middleware';
 
@@ -25,6 +26,18 @@ router.post(
     body('quantity').isInt({ min: 1 }).withMessage('Valid quantity is required'),
   ],
   addToCart
+);
+
+// POST /api/cart/external - Add external product to cart
+router.post(
+  '/external',
+  [
+    body('productName').notEmpty().withMessage('Product name is required'),
+    body('productUrl').notEmpty().withMessage('Product URL is required'),
+    body('productPrice').isNumeric().withMessage('Product price must be a number'),
+    body('quantity').optional().isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
+  ],
+  addExternalProductToCart
 );
 
 // PUT /api/cart/items/:id

@@ -84,19 +84,27 @@ export const createOrder = async (
     throw new AppError('Address not found', 404);
   }
 
-  // Validate stock for all items
+  // Validate stock for all items (only for regular products)
   for (const item of cart.items) {
-    if (item.product.stock < item.quantity) {
-      throw new AppError(`Insufficient stock for ${item.product.name}`, 400);
-    }
-    if (!item.product.isActive) {
-      throw new AppError(`Product ${item.product.name} is no longer available`, 400);
+    if (!(item as any).isExternal && item.product) {
+      if (item.product.stock < item.quantity) {
+        throw new AppError(`Insufficient stock for ${item.product.name}`, 400);
+      }
+      if (!item.product.isActive) {
+        throw new AppError(`Product ${item.product.name} is no longer available`, 400);
+      }
     }
   }
 
   // Calculate total
   const totalAmount = cart.items.reduce((sum, item) => {
-    return sum + Number(item.product.price) * item.quantity;
+    const itemAny = item as any;
+    if (itemAny.isExternal && itemAny.externalProductPrice) {
+      return sum + Number(itemAny.externalProductPrice) * item.quantity;
+    } else if (item.product) {
+      return sum + Number(item.product.price) * item.quantity;
+    }
+    return sum;
   }, 0);
 
   // Create order with items in a transaction
@@ -111,11 +119,13 @@ export const createOrder = async (
         status: 'PENDING',
         paymentStatus: 'PENDING',
         items: {
-          create: cart.items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.product.price,
-          })),
+          create: cart.items
+            .filter((item) => !(item as any).isExternal && item.productId)
+            .map((item) => ({
+              productId: item.productId!,
+              quantity: item.quantity,
+              price: item.product!.price,
+            })),
         },
       },
       include: {
@@ -134,16 +144,18 @@ export const createOrder = async (
       },
     });
 
-    // Update product stock
+    // Update product stock (only for regular products)
     for (const item of cart.items) {
-      await tx.product.update({
-        where: { id: item.productId },
-        data: {
-          stock: {
-            decrement: item.quantity,
+      if (!(item as any).isExternal && item.productId) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stock: {
+              decrement: item.quantity,
+            },
           },
-        },
-      });
+        });
+      }
     }
 
     // Clear cart
@@ -192,4 +204,40 @@ export const updateOrderStatus = async (orderId: string, status: string) => {
   });
 
   return updatedOrder;
+};
+
+export const createExternalProductOrder = async (
+  userId: string,
+  productName: string,
+  productUrl: string,
+  productPrice: number,
+  productImageUrl: string,
+  quantity: number
+) => {
+  // Create order for external product
+  const order = await prisma.order.create({
+    data: {
+      userId,
+      totalAmount: productPrice * quantity,
+      paymentMethod: 'Manual Processing',
+      status: 'PENDING',
+      paymentStatus: 'PENDING',
+      isExternal: true,
+      externalProductName: productName,
+      externalProductUrl: productUrl,
+      externalProductImageUrl: productImageUrl,
+    } as any,
+    include: {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+    },
+  });
+
+  return order;
 };

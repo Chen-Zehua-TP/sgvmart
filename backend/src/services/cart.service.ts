@@ -44,7 +44,13 @@ export const getOrCreateCart = async (userId: string) => {
 
   // Calculate total
   const total = cart.items.reduce((sum, item) => {
-    return sum + Number(item.product.price) * item.quantity;
+    const itemAny = item as any;
+    if (itemAny.isExternal && itemAny.externalProductPrice) {
+      return sum + Number(itemAny.externalProductPrice) * item.quantity;
+    } else if (item.product) {
+      return sum + Number(item.product.price) * item.quantity;
+    }
+    return sum;
   }, 0);
 
   return {
@@ -86,14 +92,12 @@ export const addToCart = async (
     });
   }
 
-  // Check if item already in cart
-  const existingItem = await prisma.cartItem.findUnique({
+  // Check if item already in cart (for regular products)
+  const existingItem = await prisma.cartItem.findFirst({
     where: {
-      cartId_productId: {
-        cartId: cart.id,
-        productId,
-      },
-    },
+      cartId: cart.id,
+      productId,
+    } as any,
   });
 
   let cartItem;
@@ -172,9 +176,11 @@ export const updateCartItem = async (
     throw new AppError('Cart item not found', 404);
   }
 
-  // Check stock
-  if (cartItem.product.stock < quantity) {
-    throw new AppError('Insufficient stock', 400);
+  // Check stock (only for regular products)
+  if (!(cartItem as any).isExternal && cartItem.product) {
+    if (cartItem.product.stock < quantity) {
+      throw new AppError('Insufficient stock', 400);
+    }
   }
 
   const updatedItem = await prisma.cartItem.update({
@@ -232,4 +238,39 @@ export const clearCart = async (userId: string) => {
   await prisma.cartItem.deleteMany({
     where: { cartId: cart.id },
   });
+};
+
+export const addExternalProductToCart = async (
+  userId: string,
+  productName: string,
+  productUrl: string,
+  productPrice: number,
+  productImageUrl: string,
+  quantity: number
+) => {
+  // Get or create cart
+  let cart = await prisma.cart.findUnique({
+    where: { userId },
+  });
+
+  if (!cart) {
+    cart = await prisma.cart.create({
+      data: { userId },
+    });
+  }
+
+  // Create cart item for external product
+  const cartItem = await prisma.cartItem.create({
+    data: {
+      cartId: cart.id,
+      quantity,
+      isExternal: true,
+      externalProductName: productName,
+      externalProductUrl: productUrl,
+      externalProductPrice: productPrice,
+      externalProductImageUrl: productImageUrl,
+    } as any,
+  });
+
+  return cartItem;
 };

@@ -12,6 +12,7 @@ import productRoutes from './routes/product.routes';
 import categoryRoutes from './routes/category.routes';
 import cartRoutes from './routes/cart.routes';
 import orderRoutes from './routes/order.routes';
+import categoryItemsRoutes from './routes/categoryItems.routes';
 
 // Load environment variables
 dotenv.config();
@@ -40,14 +41,17 @@ app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/category-items', categoryItemsRoutes);
 
 // Error handling
 app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+const port = Number(PORT);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`🚀 Server is running on http://localhost:${port}`);
+  console.log(`🌐 Network: http://192.168.1.85:${port}`);
   console.log(`📚 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 

@@ -1,5 +1,18 @@
 # SGVMart - E-Commerce Web Application
 
+## 🌟 New Feature: AI-Powered Category Items
+
+SGVMart now includes an intelligent category discovery system powered by Google's Gemini AI! The home page displays curated items across 5 categories that users can click to instantly search for products.
+
+**Quick Setup:**
+```bash
+node setup-gemini.js
+```
+
+See [QUICKSTART.md](QUICKSTART.md) for detailed setup instructions.
+
+---
+
 ## Architecture Overview
 
 This is a full-stack e-commerce web application with the following architecture:
@@ -56,9 +69,14 @@ This is a full-stack e-commerce web application with the following architecture:
 - Prisma ORM
 - JWT Authentication
 - bcrypt
+- **Google Gemini API** (AI-powered category items)
 
 ### Database
 - PostgreSQL
+
+### External APIs
+- **Google Gemini API** - AI-powered item generation
+- **GGSel** - Product search integration
 
 ## Project Structure
 
@@ -124,6 +142,7 @@ sgvmart/
 ```
 DATABASE_URL="postgresql://user:password@localhost:5432/sgvmart"
 JWT_SECRET="your-secret-key"
+GEMINI_API_KEY="your-gemini-api-key"  # NEW! Get from https://makersuite.google.com/app/apikey
 PORT=3000
 NODE_ENV=development
 ```
@@ -134,6 +153,11 @@ VITE_API_URL=http://localhost:3000/api
 ```
 
 ## API Endpoints
+
+### Category Items (NEW! 🌟)
+- GET `/api/category-items` - Get all AI-generated category items
+- GET `/api/category-items/:category` - Get items for specific category
+- POST `/api/category-items/:category/refresh` - Refresh items from Gemini (Admin)
 
 ### Authentication
 - POST `/api/auth/register` - Register new user
@@ -175,6 +199,15 @@ VITE_API_URL=http://localhost:3000/api
 
 ## Development
 
+### Quick Setup with Gemini API
+```bash
+# Interactive setup for Gemini API key
+node setup-gemini.js
+
+# Or manually edit backend/.env and add:
+# GEMINI_API_KEY="your-api-key-here"
+```
+
 ### Running Tests
 ```bash
 # Backend tests
@@ -199,3 +232,26 @@ npm run build
 
 ## License
 MIT
+
+## 📚 Additional Documentation
+
+- **[QUICKSTART.md](QUICKSTART.md)** - Quick setup guide for the Gemini feature
+- **[GEMINI_CATEGORY_ITEMS.md](GEMINI_CATEGORY_ITEMS.md)** - Detailed documentation
+- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Technical implementation details
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture diagrams
+
+## 🎯 Feature Highlights
+
+### AI-Powered Category Discovery
+- 🎮 **Games** - Popular gaming titles
+- 💰 **Digital Currency & Items** - In-game currencies and items
+- 💻 **Software Products** - Software and productivity tools
+- 🎁 **Gift Cards** - Digital gift cards
+- 📺 **Subscriptions** - Streaming and service subscriptions
+
+### Benefits
+- ✅ Smart caching for fast performance
+- ✅ One-click search for popular items
+- ✅ AI-generated, always relevant content
+- ✅ Cost-effective (minimal API usage)
+- ✅ Beautiful, responsive UI

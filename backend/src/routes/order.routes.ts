@@ -5,6 +5,7 @@ import {
   getOrderById,
   createOrder,
   updateOrderStatus,
+  createExternalProductOrder,
 } from '../controllers/order.controller';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 
@@ -27,6 +28,18 @@ router.post(
     body('paymentMethod').notEmpty().withMessage('Payment method is required'),
   ],
   createOrder
+);
+
+// POST /api/orders/external - for external products (like GGSel)
+router.post(
+  '/external',
+  [
+    body('productName').notEmpty().withMessage('Product name is required'),
+    body('productUrl').notEmpty().withMessage('Product URL is required'),
+    body('productPrice').isNumeric().withMessage('Product price must be a number'),
+    body('quantity').optional().isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
+  ],
+  createExternalProductOrder
 );
 
 // PUT /api/orders/:id (Admin only)

@@ -27,18 +27,18 @@ export default function Layout({ children }: LayoutProps) {
               <Link to="/" className="text-gray-700 hover:text-blue-600">
                 Home
               </Link>
-              <Link to="/products" className="text-gray-700 hover:text-blue-600">
+              {/* <Link to="/products" className="text-gray-700 hover:text-blue-600">
                 Products
-              </Link>
+              </Link> */}
               <Link to="/cart" className="text-gray-700 hover:text-blue-600">
                 Cart
+              </Link>
+              <Link to="/orders" className="text-gray-700 hover:text-blue-600">
+                Orders
               </Link>
 
               {user ? (
                 <>
-                  <Link to="/orders" className="text-gray-700 hover:text-blue-600">
-                    Orders
-                  </Link>
                   <Link to="/profile" className="text-gray-700 hover:text-blue-600">
                     Profile
                   </Link>
@@ -54,19 +54,7 @@ export default function Layout({ children }: LayoutProps) {
                     Logout
                   </button>
                 </>
-              ) : (
-                <>
-                  <Link to="/login" className="text-gray-700 hover:text-blue-600">
-                    Login
-                  </Link>
-                  <Link
-                    to="/register"
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                  >
-                    Register
-                  </Link>
-                </>
-              )}
+              ) : null}
             </div>
           </div>
         </nav>
