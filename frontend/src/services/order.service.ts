@@ -11,8 +11,8 @@ export const orderService = {
     return response.data.order;
   },
 
-  async createOrder(addressId: string, paymentMethod: string) {
-    const response = await api.post('/orders', { addressId, paymentMethod });
+  async createOrder(addressId: string, paymentMethod: string, paymentIntentId?: string) {
+    const response = await api.post('/orders', { addressId, paymentMethod, paymentIntentId });
     return response.data.order;
   },
 

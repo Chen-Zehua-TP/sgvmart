@@ -94,21 +94,18 @@ export default function Cart() {
   };
 
   const handleCheckoutGuest = () => {
-    // Calculate discounted price and create orders directly
+    // Create orders directly
     const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
     
     guestCart.forEach(item => {
-      const discountedPrice = item.productPrice * 0.9;
       const newOrder = {
         id: Date.now().toString() + Math.random(),
         email: 'guest@order.com',
         productName: item.productName,
         productUrl: item.productUrl,
-        productPrice: discountedPrice,
-        originalPrice: item.productPrice,
+        productPrice: item.productPrice,
         productImageUrl: item.productImageUrl,
         quantity: item.quantity,
-        discount: '10%',
         status: 'PENDING',
         createdAt: new Date().toISOString(),
       };
@@ -118,11 +115,10 @@ export default function Cart() {
     localStorage.setItem('guestOrders', JSON.stringify(guestOrders));
     localStorage.setItem('guestCart', '[]');
     setGuestCart([]);
-    alert(`Orders placed successfully! You saved ${(guestTotal - guestDiscountedTotal).toFixed(2)} with 10% discount.`);
+    alert('Orders placed successfully!');
   };
 
   const guestTotal = guestCart.reduce((sum, item) => sum + (item.productPrice * item.quantity), 0);
-  const guestDiscountedTotal = guestTotal * 0.9;
 
   if (loading) {
     return <div className="text-center py-8">Loading cart...</div>;
@@ -217,22 +213,11 @@ export default function Cart() {
           ))}
 
           <div className="p-4 bg-gray-50">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-lg text-gray-900">Subtotal:</span>
-              <span className="text-lg line-through text-gray-500">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-xl font-bold text-gray-900">Total:</span>
+              <span className="text-2xl font-bold text-blue-600">
                 ${guestTotal.toFixed(2)}
               </span>
-            </div>
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-xl font-bold text-gray-900">Total with 10% OFF:</span>
-              <span className="text-2xl font-bold text-green-600">
-                ${guestDiscountedTotal.toFixed(2)}
-              </span>
-            </div>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-              <p className="text-sm text-green-800 font-medium">
-                🎉 You'll save ${(guestTotal - guestDiscountedTotal).toFixed(2)} at checkout!
-              </p>
             </div>
 
             <div className="flex gap-4">
@@ -246,7 +231,7 @@ export default function Cart() {
                 onClick={handleCheckoutGuest}
                 className="flex-1 text-center bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700"
               >
-                Checkout with 10% Off
+                Checkout
               </button>
             </div>
           </div>

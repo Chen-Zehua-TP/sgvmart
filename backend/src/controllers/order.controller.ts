@@ -65,12 +65,13 @@ export const createOrder = async (
       throw new AppError('Not authenticated', 401);
     }
 
-    const { addressId, paymentMethod } = req.body;
+    const { addressId, paymentMethod, paymentIntentId } = req.body;
 
     const order = await orderService.createOrder(
       req.user.id,
       addressId,
-      paymentMethod
+      paymentMethod,
+      paymentIntentId
     );
 
     res.status(201).json({ order });

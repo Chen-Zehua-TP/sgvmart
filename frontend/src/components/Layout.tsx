@@ -1,5 +1,5 @@
-import { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { ReactNode, useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { authService } from '../services/auth.service';
 
 interface LayoutProps {
@@ -7,10 +7,16 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const user = authService.getUser();
+  const [user, setUser] = useState(authService.getUser());
+  const location = useLocation();
+
+  useEffect(() => {
+    setUser(authService.getUser());
+  }, [location]);
 
   const handleLogout = () => {
     authService.logout();
+    setUser(null);
   };
 
   return (
@@ -37,7 +43,16 @@ export default function Layout({ children }: LayoutProps) {
                 Orders
               </Link>
 
-              {user ? (
+              {!user ? (
+                <>
+                  <Link to="/login" className="text-gray-700 hover:text-blue-600">
+                    Login
+                  </Link>
+                  <Link to="/register" className="text-gray-700 hover:text-blue-600">
+                    Register
+                  </Link>
+                </>
+              ) : (
                 <>
                   <Link to="/profile" className="text-gray-700 hover:text-blue-600">
                     Profile
@@ -54,7 +69,7 @@ export default function Layout({ children }: LayoutProps) {
                     Logout
                   </button>
                 </>
-              ) : null}
+              )}
             </div>
           </div>
         </nav>

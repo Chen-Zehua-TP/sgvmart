@@ -9,10 +9,8 @@ interface GuestOrder {
   productName: string;
   productUrl: string;
   productPrice: number;
-  originalPrice: number;
   productImageUrl: string;
   quantity: number;
-  discount: string;
   status: string;
   createdAt: string;
 }
@@ -86,9 +84,6 @@ export default function Orders() {
                     <span className="inline-block px-3 py-1 rounded text-sm bg-yellow-100 text-yellow-800">
                       {order.status}
                     </span>
-                    <div className="mt-2 inline-block px-2 py-1 bg-green-100 text-green-700 text-xs rounded font-semibold">
-                      {order.discount} OFF
-                    </div>
                   </div>
                 </div>
 
@@ -117,21 +112,11 @@ export default function Orders() {
                 <div className="border-t pt-4 flex justify-between items-center">
                   <div>
                     <span className="font-semibold">Total:</span>
-                    {order.originalPrice > order.productPrice && (
-                      <span className="text-sm text-gray-500 line-through ml-2">
-                        ${(order.originalPrice * order.quantity).toFixed(2)}
-                      </span>
-                    )}
                   </div>
                   <div className="text-right">
-                    <span className="text-xl font-bold text-green-600">
+                    <span className="text-xl font-bold text-blue-600">
                       ${(order.productPrice * order.quantity).toFixed(2)}
                     </span>
-                    {order.originalPrice > order.productPrice && (
-                      <p className="text-sm text-green-600">
-                        You saved ${((order.originalPrice - order.productPrice) * order.quantity).toFixed(2)}!
-                      </p>
-                    )}
                   </div>
                 </div>
 

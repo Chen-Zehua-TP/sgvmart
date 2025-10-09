@@ -80,6 +80,7 @@ export interface Order {
   status: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
   paymentMethod: string;
   paymentStatus: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+  paymentIntentId?: string;
   items: OrderItem[];
   createdAt: string;
   updatedAt: string;

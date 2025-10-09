@@ -128,6 +128,7 @@ model Order {
   status          OrderStatus @default(PENDING)
   paymentMethod   String
   paymentStatus   PaymentStatus @default(PENDING)
+  paymentIntentId String?     // Stripe payment intent ID
   isExternal      Boolean     @default(false) // Flag for external products
   externalProductName String?
   externalProductUrl  String?

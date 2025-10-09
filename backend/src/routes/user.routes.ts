@@ -1,13 +1,24 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.middleware';
-import { getUserProfile, updateUserProfile } from '../controllers/user.controller';
+import {
+  getUserProfile,
+  updateUserProfile,
+  getAddresses,
+  addAddress,
+  modifyAddress,
+  removeAddress,
+} from '../controllers/user.controller';
 
 const router = Router();
 
-// GET /api/users/:id
-router.get('/:id', authenticate, getUserProfile);
+// Address routes (must come before /:id routes)
+router.get('/addresses', authenticate, getAddresses);
+router.post('/addresses', authenticate, addAddress);
+router.put('/addresses/:id', authenticate, modifyAddress);
+router.delete('/addresses/:id', authenticate, removeAddress);
 
-// PUT /api/users/:id
+// User profile routes
+router.get('/:id', authenticate, getUserProfile);
 router.put('/:id', authenticate, updateUserProfile);
 
 export default router;

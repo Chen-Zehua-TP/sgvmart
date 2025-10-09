@@ -59,3 +59,94 @@ export const updateUser = async (id: string, data: any) => {
 
   return user;
 };
+
+export const getUserAddresses = async (userId: string) => {
+  const addresses = await prisma.address.findMany({
+    where: { userId },
+    orderBy: { isDefault: 'desc' },
+  });
+
+  return addresses;
+};
+
+export const createAddress = async (userId: string, data: any) => {
+  const { street, city, state, zipCode, country, isDefault } = data;
+
+  // If this is set as default, unset other defaults
+  if (isDefault) {
+    await prisma.address.updateMany({
+      where: { userId, isDefault: true },
+      data: { isDefault: false },
+    });
+  }
+
+  const address = await prisma.address.create({
+    data: {
+      userId,
+      street,
+      city,
+      state,
+      zipCode,
+      country,
+      isDefault: isDefault || false,
+    },
+  });
+
+  return address;
+};
+
+export const updateAddress = async (
+  addressId: string,
+  userId: string,
+  data: any
+) => {
+  // Verify ownership
+  const existingAddress = await prisma.address.findFirst({
+    where: { id: addressId, userId },
+  });
+
+  if (!existingAddress) {
+    throw new AppError('Address not found', 404);
+  }
+
+  const { street, city, state, zipCode, country, isDefault } = data;
+
+  // If this is set as default, unset other defaults
+  if (isDefault) {
+    await prisma.address.updateMany({
+      where: { userId, isDefault: true, NOT: { id: addressId } },
+      data: { isDefault: false },
+    });
+  }
+
+  const address = await prisma.address.update({
+    where: { id: addressId },
+    data: {
+      ...(street && { street }),
+      ...(city && { city }),
+      ...(state && { state }),
+      ...(zipCode && { zipCode }),
+      ...(country && { country }),
+      ...(isDefault !== undefined && { isDefault }),
+    },
+  });
+
+  return address;
+};
+
+export const deleteAddress = async (addressId: string, userId: string) => {
+  // Verify ownership
+  const existingAddress = await prisma.address.findFirst({
+    where: { id: addressId, userId },
+  });
+
+  if (!existingAddress) {
+    throw new AppError('Address not found', 404);
+  }
+
+  await prisma.address.delete({
+    where: { id: addressId },
+  });
+
+  return { success: true };
+};

@@ -129,9 +129,6 @@ export default function Home() {
 
   const handleBuyNow = async (product: GGSelProduct) => {
     try {
-      // Calculate discounted price (10% off)
-      const discountedPrice = product.price * 0.9;
-
       // Store order in localStorage for guest users
       const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
       const newOrder = {
@@ -139,11 +136,9 @@ export default function Home() {
         email: 'guest@order.com', // Default email for guest orders
         productName: product.name,
         productUrl: product.url,
-        productPrice: discountedPrice,
-        originalPrice: product.price,
+        productPrice: product.price,
         productImageUrl: product.imageUrl,
         quantity: 1,
-        discount: '10%',
         status: 'PENDING',
         createdAt: new Date().toISOString(),
       };
@@ -151,7 +146,7 @@ export default function Home() {
       guestOrders.push(newOrder);
       localStorage.setItem('guestOrders', JSON.stringify(guestOrders));
 
-      setSuccessMessage(`Order placed successfully! You saved $${(product.price * 0.1).toFixed(2)} with 10% discount.`);
+      setSuccessMessage('Order placed successfully!');
       
       setTimeout(() => {
         setSuccessMessage('');

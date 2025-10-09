@@ -54,7 +54,8 @@ export const getOrderById = async (orderId: string, userId: string) => {
 export const createOrder = async (
   userId: string,
   addressId: string,
-  paymentMethod: string
+  paymentMethod: string,
+  paymentIntentId?: string
 ) => {
   // Get user cart
   const cart = await prisma.cart.findUnique({
@@ -116,6 +117,7 @@ export const createOrder = async (
         addressId,
         totalAmount,
         paymentMethod,
+        paymentIntentId,
         status: 'PENDING',
         paymentStatus: 'PENDING',
         items: {
