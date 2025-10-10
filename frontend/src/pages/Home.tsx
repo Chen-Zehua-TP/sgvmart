@@ -1,6 +1,55 @@
 import { useState, useEffect } from 'react';
 import { categoryItemsService, CategoryItem } from '../services/categoryItems.service';
 
+// GGSel API Response Interface
+interface GGSelApiProduct {
+  id_goods: number;
+  url: string;
+  is_active: boolean;
+  id_section: number;
+  id_seller: number;
+  seller_name: string;
+  name: string;
+  summpay: string;
+  images: string;
+  forbidden_type: number;
+  price_wmr: string;
+  price_wmz: string;
+  price_wme: string;
+  cnt_sell: number;
+  rating: number;
+  content_type_id: number;
+  search_title: string;
+  hidden_from_parents: boolean;
+  hidden_from_search: boolean;
+  sale: number | null;
+  category_discount: number | null;
+  content_type_sort: number | null;
+  max_cnt_sell: number | null;
+  unit_name: string | null;
+  steam_discount: number | null;
+  price_wmr_for_one: number;
+  price_wmz_for_one: number;
+  price_wme_for_one: number;
+  is_preorder: boolean;
+  is_sku: boolean;
+  sku_id: number | null;
+  buy_box_id: number | null;
+  payment_code: string;
+  payment_url: string | null;
+  sort: number[];
+  in_favorites: boolean;
+}
+
+interface GGSelApiResponse {
+  pageProps: {
+    searchGoods: {
+      data: GGSelApiProduct[];
+    };
+  };
+}
+
+// Central normalized product interface
 interface GGSelProduct {
   id: string;
   name: string;
@@ -11,6 +60,9 @@ interface GGSelProduct {
   inStock: boolean;
   rating?: number;
   seller?: string;
+  discount?: number;
+  salesCount?: number;
+  category?: string;
 }
 
 export default function Home() {
@@ -39,45 +91,80 @@ export default function Home() {
     fetchCategoryItems();
   }, []);
 
-  const parseGGSelHTML = (html: string): GGSelProduct[] => {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const products: GGSelProduct[] = [];
+  /**
+   * Map GGSel API product to normalized product structure
+   * This is the central dictionary/mapping function
+   * 
+   * Mapping Rules:
+   * - id: id_goods converted to string
+   * - name: Direct mapping from name field
+   * - price: price_wmz_for_one (USD equivalent)
+   * - originalPrice: Calculated from category_discount or sale percentage
+   * - imageUrl: Constructed from images and id_goods with GGSel CDN URL
+   *   Format: https://img.ggsel.ru/{id_goods}/original/AUTOxAUTO/{images}
+   * - url: Constructed product URL using url slug
+   * - inStock: is_active && !is_preorder
+   * - rating: Direct mapping from rating field
+   * - seller: Direct mapping from seller_name
+   * - discount: Calculated percentage from category_discount or sale
+   * - salesCount: Direct mapping from cnt_sell
+   * - category: Direct mapping from search_title
+   */
+  const mapGGSelProductToNormalized = (apiProduct: GGSelApiProduct): GGSelProduct => {
+    // Calculate discount percentage if applicable
+    let discount: number | undefined;
+    let originalPrice: number | undefined;
 
-    // Find all product cards - adjust selectors based on actual HTML structure
-    const productElements = doc.querySelectorAll('.product-card, .product-item, [class*="product"]');
-    
-    productElements.forEach((element, index) => {
-      try {
-        // Extract product details - these selectors may need adjustment based on actual HTML
-        const nameEl = element.querySelector('.product-title, .product-name, h3, h4, a[class*="title"]');
-        const priceEl = element.querySelector('.price, .product-price, [class*="price"]');
-        const imageEl = element.querySelector('img') as HTMLImageElement;
-        const linkEl = element.querySelector('a') as HTMLAnchorElement;
-        
-        const name = nameEl?.textContent?.trim() || 'Unknown Product';
-        const priceText = priceEl?.textContent?.trim() || '0';
-        const price = parseFloat(priceText.replace(/[^0-9.]/g, '')) || 0;
-        const imageUrl = imageEl?.src || imageEl?.getAttribute('data-src') || '';
-        const url = linkEl?.href || '';
+    // category_discount is the discount amount in the same currency (USD)
+    // The original price is: current_price + discount_amount
+    if (apiProduct.category_discount && apiProduct.category_discount > 0) {
+      originalPrice = apiProduct.price_wmz_for_one + apiProduct.category_discount;
+      discount = Math.round((apiProduct.category_discount / originalPrice) * 100);
+    } else if (apiProduct.sale && apiProduct.sale > 0) {
+      // sale is already a percentage
+      discount = apiProduct.sale;
+      originalPrice = apiProduct.price_wmz_for_one / (1 - apiProduct.sale / 100);
+    }
 
-        // Only add if we have at least a name and URL
-        if (name && url) {
-          products.push({
-            id: `product-${index}`,
-            name,
-            price,
-            imageUrl: imageUrl.startsWith('http') ? imageUrl : `https://ggsel.net${imageUrl}`,
-            url: url.startsWith('http') ? url : `https://ggsel.net${url}`,
-            inStock: true,
-          });
-        }
-      } catch (err) {
-        console.error('Error parsing product:', err);
-      }
-    });
+    // Construct image URL - GGSel uses img.ggsel.ru CDN with id_goods in path
+    const imageUrl = apiProduct.images
+      ? `https://img.ggsel.ru/${apiProduct.id_goods}/original/AUTOxAUTO/${apiProduct.images}`
+      : `https://ui-avatars.com/api/?name=${encodeURIComponent(apiProduct.name)}&size=300&background=4F46E5&color=fff&bold=true`;
 
-    return products;
+    // Construct product URL
+    const productUrl = `https://ggsel.net/en/catalog/product/${apiProduct.url}`;
+
+    return {
+      id: apiProduct.id_goods.toString(),
+      name: apiProduct.name,
+      price: apiProduct.price_wmz_for_one, // Using WMZ (USD equivalent)
+      originalPrice,
+      imageUrl,
+      url: productUrl,
+      inStock: apiProduct.is_active && !apiProduct.is_preorder,
+      rating: apiProduct.rating,
+      seller: apiProduct.seller_name,
+      discount,
+      salesCount: apiProduct.cnt_sell,
+      category: apiProduct.search_title,
+    };
+  };
+
+  /**
+   * Parse GGSel JSON API response and map to normalized products
+   */
+  const parseGGSelJSON = (jsonData: GGSelApiResponse): GGSelProduct[] => {
+    try {
+      const apiProducts = jsonData.pageProps?.searchGoods?.data || [];
+      
+      // Map each API product to normalized structure using central dictionary
+      return apiProducts
+        .filter(product => product.is_active && !product.hidden_from_search)
+        .map(mapGGSelProductToNormalized);
+    } catch (err) {
+      console.error('Error parsing GGSel JSON:', err);
+      return [];
+    }
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -103,7 +190,8 @@ export default function Home() {
     setSearchResults([]);
 
     try {
-      const searchEndpoint = `https://ggsel.net/en/search/${encodeURIComponent(query)}`;
+      // Use the JSON API endpoint instead of HTML
+      const searchEndpoint = `https://ggsel.net/_next/data/DCG0vPgzxhYBXgxA1RmQ2/en/search/${encodeURIComponent(query)}.json?search_term=${encodeURIComponent(query)}`;
       const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(searchEndpoint)}`;
       
       const response = await fetch(proxyUrl);
@@ -112,8 +200,10 @@ export default function Home() {
         throw new Error('Failed to fetch search results');
       }
 
-      const html = await response.text();
-      const products = parseGGSelHTML(html);
+      const jsonData: GGSelApiResponse = await response.json();
+      
+      // Use the central mapping function to normalize products
+      const products = parseGGSelJSON(jsonData);
       
       if (products.length === 0) {
         setError('No products found. Try a different search term.');
@@ -239,31 +329,45 @@ export default function Home() {
                     {category}
                   </h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                    {items.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => handleCategoryItemClick(item)}
-                        className="group bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border-2 border-blue-200 hover:border-blue-400 rounded-lg p-4 transition-all duration-200 text-left shadow-sm hover:shadow-md"
-                      >
-                        <div className="flex flex-col items-center text-center">
-                          {item.imageUrl && (
+                    {items.map((item) => {
+                      // Generate image URL if not provided
+                      const getItemImage = () => {
+                        if (item.imageUrl) {
+                          return item.imageUrl;
+                        }
+                        // Use Google Images via a proxy service
+                        // Using Clearbit for company/brand logos
+                        return `https://logo.clearbit.com/${item.name.toLowerCase().replace(/\s+/g, '')}.com`;
+                      };
+
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => handleCategoryItemClick(item)}
+                          className="group bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border-2 border-blue-200 hover:border-blue-400 rounded-lg p-4 transition-all duration-200 text-left shadow-sm hover:shadow-md"
+                        >
+                          <div className="flex flex-col items-center text-center">
                             <img
-                              src={item.imageUrl}
+                              src={getItemImage()}
                               alt={item.name}
-                              className="w-12 h-12 object-cover rounded-lg mb-2"
+                              className="w-16 h-16 object-contain rounded-lg mb-2 bg-white p-1"
+                              onError={(e) => {
+                                // Fallback: Try alternative image sources
+                                const target = e.target as HTMLImageElement;
+                                if (!target.dataset.fallbackAttempted) {
+                                  target.dataset.fallbackAttempted = 'true';
+                                  // Use UI Avatars as fallback with item name
+                                  target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&size=100&background=4F46E5&color=fff&bold=true`;
+                                }
+                              }}
                             />
-                          )}
-                          <h3 className="text-sm font-semibold text-gray-900 group-hover:text-blue-700 line-clamp-2">
-                            {item.name}
-                          </h3>
-                          {item.description && (
-                            <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                              {item.description}
-                            </p>
-                          )}
-                        </div>
-                      </button>
-                    ))}
+                            <h3 className="text-sm font-semibold text-gray-900 group-hover:text-blue-700 line-clamp-2">
+                              {item.name}
+                            </h3>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )
@@ -310,12 +414,12 @@ export default function Home() {
                   className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col"
                 >
                   {/* Product Image */}
-                  <div className="relative w-full h-48 bg-gray-100 flex items-center justify-center">
+                  <div className="relative w-full h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
                     {product.imageUrl ? (
                       <img
                         src={product.imageUrl}
                         alt={product.name}
-                        className="w-full h-full object-cover"
+                        className="max-w-full max-h-full object-contain p-2"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x200?text=No+Image';
                         }}
@@ -342,15 +446,24 @@ export default function Home() {
                       </p>
                     )}
 
+                    {/* Category Badge
+                    {product.category && (
+                      <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded mb-2 inline-block">
+                        {product.category}
+                      </span>
+                    )} */}
+
                     <div className="mt-auto">
                       {product.originalPrice && product.originalPrice > product.price && (
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs text-gray-500 line-through">
                             ${product.originalPrice.toFixed(2)}
                           </span>
-                          <span className="text-xs text-red-600 font-semibold">
-                            Save ${(product.originalPrice - product.price).toFixed(2)}
-                          </span>
+                          {product.discount && (
+                            <span className="text-xs text-white bg-red-600 px-2 py-0.5 rounded font-semibold">
+                              -{product.discount}%
+                            </span>
+                          )}
                         </div>
                       )}
                       <div className="text-lg font-bold text-blue-600">
@@ -358,22 +471,30 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {product.rating && (
-                      <div className="flex items-center mt-2">
-                        <div className="flex text-yellow-400">
-                          {[...Array(5)].map((_, i) => (
-                            <svg
-                              key={i}
-                              className={`w-4 h-4 ${i < Math.floor(product.rating!) ? 'fill-current' : 'fill-gray-300'}`}
-                              viewBox="0 0 20 20"
-                            >
-                              <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                            </svg>
-                          ))}
+                    {/* Rating and Sales Count */}
+                    <div className="flex items-center justify-between mt-2">
+                      {product.rating && (
+                        <div className="flex items-center">
+                          <div className="flex text-yellow-400">
+                            {[...Array(5)].map((_, i) => (
+                              <svg
+                                key={i}
+                                className={`w-4 h-4 ${i < Math.floor(product.rating!) ? 'fill-current' : 'fill-gray-300'}`}
+                                viewBox="0 0 20 20"
+                              >
+                                <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
+                              </svg>
+                            ))}
+                          </div>
+                          <span className="text-xs text-gray-600 ml-1">({product.rating})</span>
                         </div>
-                        <span className="text-xs text-gray-600 ml-1">({product.rating})</span>
-                      </div>
-                    )}
+                      )}
+                      {product.salesCount !== undefined && product.salesCount > 0 && (
+                        <span className="text-xs text-gray-500">
+                          {product.salesCount} sold
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Action Buttons */}
