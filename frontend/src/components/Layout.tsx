@@ -1,24 +1,11 @@
-import { ReactNode, useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { authService } from '../services/auth.service';
+import { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const [user, setUser] = useState(authService.getUser());
-  const location = useLocation();
-
-  useEffect(() => {
-    setUser(authService.getUser());
-  }, [location]);
-
-  const handleLogout = () => {
-    authService.logout();
-    setUser(null);
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -36,40 +23,6 @@ export default function Layout({ children }: LayoutProps) {
               {/* <Link to="/products" className="text-gray-700 hover:text-blue-600">
                 Products
               </Link> */}
-              <Link to="/cart" className="text-gray-700 hover:text-blue-600">
-                Cart
-              </Link>
-              <Link to="/orders" className="text-gray-700 hover:text-blue-600">
-                Orders
-              </Link>
-
-              {!user ? (
-                <>
-                  <Link to="/login" className="text-gray-700 hover:text-blue-600">
-                    Login
-                  </Link>
-                  <Link to="/register" className="text-gray-700 hover:text-blue-600">
-                    Register
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <Link to="/profile" className="text-gray-700 hover:text-blue-600">
-                    Profile
-                  </Link>
-                  {user.role === 'ADMIN' && (
-                    <Link to="/admin" className="text-gray-700 hover:text-blue-600">
-                      Admin
-                    </Link>
-                  )}
-                  <button
-                    onClick={handleLogout}
-                    className="text-gray-700 hover:text-blue-600"
-                  >
-                    Logout
-                  </button>
-                </>
-              )}
             </div>
           </div>
         </nav>

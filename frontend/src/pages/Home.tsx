@@ -1,68 +1,19 @@
 import { useState, useEffect } from 'react';
 import { categoryItemsService, CategoryItem } from '../services/categoryItems.service';
 
-// GGSel API Response Interface
-interface GGSelApiProduct {
-  id_goods: number;
-  url: string;
-  is_active: boolean;
-  id_section: number;
-  id_seller: number;
-  seller_name: string;
-  name: string;
-  summpay: string;
-  images: string;
-  forbidden_type: number;
-  price_wmr: string;
-  price_wmz: string;
-  price_wme: string;
-  cnt_sell: number;
-  rating: number;
-  content_type_id: number;
-  search_title: string;
-  hidden_from_parents: boolean;
-  hidden_from_search: boolean;
-  sale: number | null;
-  category_discount: number | null;
-  content_type_sort: number | null;
-  max_cnt_sell: number | null;
-  unit_name: string | null;
-  steam_discount: number | null;
-  price_wmr_for_one: number;
-  price_wmz_for_one: number;
-  price_wme_for_one: number;
-  is_preorder: boolean;
-  is_sku: boolean;
-  sku_id: number | null;
-  buy_box_id: number | null;
-  payment_code: string;
-  payment_url: string | null;
-  sort: number[];
-  in_favorites: boolean;
-}
-
-interface GGSelApiResponse {
-  pageProps: {
-    searchGoods: {
-      data: GGSelApiProduct[];
-    };
-  };
-}
-
 // Central normalized product interface
 interface GGSelProduct {
   id: string;
   name: string;
-  price: number;
-  originalPrice?: number;
+  price: string;
+  originalPrice?: string;
+  percentageSaved?: string;
   imageUrl: string;
   url: string;
   inStock: boolean;
-  rating?: number;
+  rating?: string;
   seller?: string;
-  discount?: number;
-  salesCount?: number;
-  category?: string;
+  salesCount?: string;
 }
 
 export default function Home() {
@@ -72,7 +23,6 @@ export default function Home() {
   const [error, setError] = useState('');
   const [categoryItems, setCategoryItems] = useState<Record<string, CategoryItem[]>>({});
   const [loadingCategories, setLoadingCategories] = useState(true);
-  const [successMessage, setSuccessMessage] = useState('');
 
   // Fetch category items on component mount
   useEffect(() => {
@@ -92,77 +42,84 @@ export default function Home() {
   }, []);
 
   /**
-   * Map GGSel API product to normalized product structure
-   * This is the central dictionary/mapping function
-   * 
-   * Mapping Rules:
-   * - id: id_goods converted to string
-   * - name: Direct mapping from name field
-   * - price: price_wmz_for_one (USD equivalent)
-   * - originalPrice: Calculated from category_discount or sale percentage
-   * - imageUrl: Constructed from images and id_goods with GGSel CDN URL
-   *   Format: https://img.ggsel.ru/{id_goods}/original/AUTOxAUTO/{images}
-   * - url: Constructed product URL using url slug
-   * - inStock: is_active && !is_preorder
-   * - rating: Direct mapping from rating field
-   * - seller: Direct mapping from seller_name
-   * - discount: Calculated percentage from category_discount or sale
-   * - salesCount: Direct mapping from cnt_sell
-   * - category: Direct mapping from search_title
+   * Parse GGSel HTML and scrape product data from the page
    */
-  const mapGGSelProductToNormalized = (apiProduct: GGSelApiProduct): GGSelProduct => {
-    // Calculate discount percentage if applicable
-    let discount: number | undefined;
-    let originalPrice: number | undefined;
-
-    // category_discount is the discount amount in the same currency (USD)
-    // The original price is: current_price + discount_amount
-    if (apiProduct.category_discount && apiProduct.category_discount > 0) {
-      originalPrice = apiProduct.price_wmz_for_one + apiProduct.category_discount;
-      discount = Math.round((apiProduct.category_discount / originalPrice) * 100);
-    } else if (apiProduct.sale && apiProduct.sale > 0) {
-      // sale is already a percentage
-      discount = apiProduct.sale;
-      originalPrice = apiProduct.price_wmz_for_one / (1 - apiProduct.sale / 100);
-    }
-
-    // Construct image URL - GGSel uses img.ggsel.ru CDN with id_goods in path
-    const imageUrl = apiProduct.images
-      ? `https://img.ggsel.ru/${apiProduct.id_goods}/original/AUTOxAUTO/${apiProduct.images}`
-      : `https://ui-avatars.com/api/?name=${encodeURIComponent(apiProduct.name)}&size=300&background=4F46E5&color=fff&bold=true`;
-
-    // Construct product URL
-    const productUrl = `https://ggsel.net/en/catalog/product/${apiProduct.url}`;
-
-    return {
-      id: apiProduct.id_goods.toString(),
-      name: apiProduct.name,
-      price: apiProduct.price_wmz_for_one, // Using WMZ (USD equivalent)
-      originalPrice,
-      imageUrl,
-      url: productUrl,
-      inStock: apiProduct.is_active && !apiProduct.is_preorder,
-      rating: apiProduct.rating,
-      seller: apiProduct.seller_name,
-      discount,
-      salesCount: apiProduct.cnt_sell,
-      category: apiProduct.search_title,
-    };
-  };
-
-  /**
-   * Parse GGSel JSON API response and map to normalized products
-   */
-  const parseGGSelJSON = (jsonData: GGSelApiResponse): GGSelProduct[] => {
+  const parseGGSelHTML = (htmlText: string): GGSelProduct[] => {
     try {
-      const apiProducts = jsonData.pageProps?.searchGoods?.data || [];
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlText, 'text/html');
+      const products: GGSelProduct[] = [];
       
-      // Map each API product to normalized structure using central dictionary
-      return apiProducts
-        .filter(product => product.is_active && !product.hidden_from_search)
-        .map(mapGGSelProductToNormalized);
+      // Find all product cards - adjust selectors based on actual GGSel HTML structure
+      // Common selectors for product cards: .product-card, .goods-item, [data-product], etc.
+      const productCards = doc.querySelectorAll('.goods-item, .product-card, [class*="product"]');
+      
+      productCards.forEach((card, index) => {
+        try {
+          // Extract product name
+          const nameElement = card.querySelector('[class*="name"], [class*="title"], h3, h4, a[class*="product"]');
+          const name = nameElement?.textContent?.trim() || '';
+          
+          // Extract product URL
+          const linkElement = card.querySelector('a[href*="/catalog/product/"]') as HTMLAnchorElement;
+          const url = linkElement?.href || '';
+          
+          // Extract product image
+          const imageElement = card.querySelector('img') as HTMLImageElement;
+          const imageUrl = imageElement?.src || imageElement?.dataset?.src || '';
+          
+          // Extract price
+          const priceElement = card.querySelector('[class*="price"], .price, [class*="cost"]');
+          const priceText = priceElement?.textContent?.trim() || '';
+          
+          // Extract original price (if discounted)
+          const originalPriceElement = card.querySelector('[class*="old"], [class*="original"], [class*="crossed"]');
+          const originalPrice = originalPriceElement?.textContent?.trim();
+          
+          // Extract discount
+          const discountElement = card.querySelector('[class*="discount"], [class*="sale"], [class*="percent"]');
+          const discount = discountElement?.textContent?.trim();
+          
+          // Extract seller
+          const sellerElement = card.querySelector('[class*="seller"], [class*="vendor"]');
+          const seller = sellerElement?.textContent?.trim();
+          
+          // Extract rating
+          const ratingElement = card.querySelector('[class*="rating"], [class*="star"]');
+          const rating = ratingElement?.textContent?.trim() || ratingElement?.getAttribute('data-rating');
+          
+          // Extract sales count
+          const salesElement = card.querySelector('[class*="sold"], [class*="sales"]');
+          const salesCount = salesElement?.textContent?.trim();
+          
+          // Check if in stock
+          const stockElement = card.querySelector('[class*="stock"], [class*="available"]');
+          const inStock = !card.querySelector('[class*="out-of-stock"], [class*="unavailable"]');
+          
+          // Only add if we have at least name and URL
+          if (name && url) {
+            products.push({
+              id: `product-${index}`,
+              name,
+              price: priceText,
+              originalPrice,
+              imageUrl,
+              url: url.startsWith('http') ? url : `https://ggsel.net${url}`,
+              inStock,
+              rating,
+              seller,
+              discount,
+              salesCount,
+            });
+          }
+        } catch (err) {
+          console.error('Error parsing product card:', err);
+        }
+      });
+      
+      return products;
     } catch (err) {
-      console.error('Error parsing GGSel JSON:', err);
+      console.error('Error parsing GGSel HTML:', err);
       return [];
     }
   };
@@ -190,8 +147,8 @@ export default function Home() {
     setSearchResults([]);
 
     try {
-      // Use the JSON API endpoint instead of HTML
-      const searchEndpoint = `https://ggsel.net/_next/data/DCG0vPgzxhYBXgxA1RmQ2/en/search/${encodeURIComponent(query)}.json?search_term=${encodeURIComponent(query)}`;
+      // Use the HTML page endpoint and scrape the content
+      const searchEndpoint = `https://ggsel.net/en/search/${encodeURIComponent(query)}`;
       const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(searchEndpoint)}`;
       
       const response = await fetch(proxyUrl);
@@ -200,10 +157,10 @@ export default function Home() {
         throw new Error('Failed to fetch search results');
       }
 
-      const jsonData: GGSelApiResponse = await response.json();
+      const htmlText = await response.text();
       
-      // Use the central mapping function to normalize products
-      const products = parseGGSelJSON(jsonData);
+      // Parse HTML and scrape product data
+      const products = parseGGSelHTML(htmlText);
       
       if (products.length === 0) {
         setError('No products found. Try a different search term.');
@@ -214,67 +171,6 @@ export default function Home() {
       setError(err.message || 'Failed to search products');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleBuyNow = async (product: GGSelProduct) => {
-    try {
-      // Store order in localStorage for guest users
-      const guestOrders = JSON.parse(localStorage.getItem('guestOrders') || '[]');
-      const newOrder = {
-        id: Date.now().toString(),
-        email: 'guest@order.com', // Default email for guest orders
-        productName: product.name,
-        productUrl: product.url,
-        productPrice: product.price,
-        productImageUrl: product.imageUrl,
-        quantity: 1,
-        status: 'PENDING',
-        createdAt: new Date().toISOString(),
-      };
-      
-      guestOrders.push(newOrder);
-      localStorage.setItem('guestOrders', JSON.stringify(guestOrders));
-
-      setSuccessMessage('Order placed successfully!');
-      
-      setTimeout(() => {
-        setSuccessMessage('');
-      }, 5000);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to place order. Please try again.');
-      setTimeout(() => setError(''), 3000);
-    }
-  };
-
-  const handleAddToCart = async (product: GGSelProduct) => {
-    try {
-      // Store in localStorage for guest users
-      const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
-      
-      // Check if product already in cart
-      const existingIndex = guestCart.findIndex((item: any) => item.productUrl === product.url);
-      
-      if (existingIndex >= 0) {
-        guestCart[existingIndex].quantity += 1;
-      } else {
-        guestCart.push({
-          id: Date.now().toString(),
-          productName: product.name,
-          productUrl: product.url,
-          productPrice: product.price,
-          productImageUrl: product.imageUrl,
-          quantity: 1,
-        });
-      }
-      
-      localStorage.setItem('guestCart', JSON.stringify(guestCart));
-      
-      setSuccessMessage('Product added to cart!');
-      setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to add to cart. Please try again.');
-      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -305,9 +201,6 @@ export default function Home() {
             </div>
             {error && (
               <div className="mt-3 text-red-600 text-sm text-center bg-red-50 py-2 px-4 rounded">{error}</div>
-            )}
-            {successMessage && (
-              <div className="mt-3 text-green-600 text-sm text-center bg-green-50 py-2 px-4 rounded">{successMessage}</div>
             )}
           </form>
         </div>
@@ -454,69 +347,43 @@ export default function Home() {
                     )} */}
 
                     <div className="mt-auto">
-                      {product.originalPrice && product.originalPrice > product.price && (
+                      {product.originalPrice && (
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs text-gray-500 line-through">
-                            ${product.originalPrice.toFixed(2)}
+                            {product.originalPrice}
                           </span>
-                          {product.discount && (
+                          {product.percentageSaved && (
                             <span className="text-xs text-white bg-red-600 px-2 py-0.5 rounded font-semibold">
-                              -{product.discount}%
+                              {product.percentageSaved}
                             </span>
                           )}
                         </div>
                       )}
-                      <div className="text-lg font-bold text-blue-600">
-                        ${product.price.toFixed(2)}
+                      <div className="flex items-baseline gap-2">
+                        <div className="text-lg font-bold text-blue-600">
+                          {product.price}
+                        </div>
+                        {!product.originalPrice && product.percentageSaved && (
+                          <span className="text-xs text-white bg-red-600 px-2 py-0.5 rounded font-semibold">
+                            {product.percentageSaved}
+                          </span>
+                        )}
                       </div>
                     </div>
 
                     {/* Rating and Sales Count */}
                     <div className="flex items-center justify-between mt-2">
                       {product.rating && (
-                        <div className="flex items-center">
-                          <div className="flex text-yellow-400">
-                            {[...Array(5)].map((_, i) => (
-                              <svg
-                                key={i}
-                                className={`w-4 h-4 ${i < Math.floor(product.rating!) ? 'fill-current' : 'fill-gray-300'}`}
-                                viewBox="0 0 20 20"
-                              >
-                                <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                              </svg>
-                            ))}
-                          </div>
-                          <span className="text-xs text-gray-600 ml-1">({product.rating})</span>
+                        <div className="flex items-center text-yellow-400">
+                          <span className="text-xs text-gray-600">★ {product.rating}</span>
                         </div>
                       )}
-                      {product.salesCount !== undefined && product.salesCount > 0 && (
+                      {product.salesCount && (
                         <span className="text-xs text-gray-500">
                           {product.salesCount} sold
                         </span>
                       )}
                     </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="px-4 pb-4 flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleBuyNow(product);
-                      }}
-                      className="flex-1 bg-green-600 text-white text-center py-2 rounded-lg font-semibold hover:bg-green-700 transition text-sm"
-                    >
-                      Buy
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleAddToCart(product);
-                      }}
-                      className="flex-1 bg-blue-600 text-white text-center py-2 rounded-lg font-semibold hover:bg-blue-700 transition text-sm"
-                    >
-                      Add to Cart
-                    </button>
                   </div>
                 </a>
               ))}

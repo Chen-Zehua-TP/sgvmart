@@ -71,20 +71,6 @@ export const getProductById = async (id: string) => {
           slug: true,
         },
       },
-      reviews: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-            },
-          },
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-      },
     },
   });
 

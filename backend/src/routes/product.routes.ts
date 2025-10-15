@@ -7,7 +7,6 @@ import {
   updateProduct,
   deleteProduct,
 } from '../controllers/product.controller';
-import { authenticate, authorize } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -17,11 +16,9 @@ router.get('/', getAllProducts);
 // GET /api/products/:id
 router.get('/:id', getProductById);
 
-// POST /api/products (Admin only)
+// POST /api/products
 router.post(
   '/',
-  authenticate,
-  authorize('ADMIN'),
   [
     body('name').trim().notEmpty().withMessage('Product name is required'),
     body('description').trim().notEmpty().withMessage('Description is required'),
@@ -32,10 +29,10 @@ router.post(
   createProduct
 );
 
-// PUT /api/products/:id (Admin only)
-router.put('/:id', authenticate, authorize('ADMIN'), updateProduct);
+// PUT /api/products/:id
+router.put('/:id', updateProduct);
 
-// DELETE /api/products/:id (Admin only)
-router.delete('/:id', authenticate, authorize('ADMIN'), deleteProduct);
+// DELETE /api/products/:id
+router.delete('/:id', deleteProduct);
 
 export default router;

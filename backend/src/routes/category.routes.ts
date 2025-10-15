@@ -7,7 +7,6 @@ import {
   updateCategory,
   deleteCategory,
 } from '../controllers/category.controller';
-import { authenticate, authorize } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -17,11 +16,9 @@ router.get('/', getAllCategories);
 // GET /api/categories/:id
 router.get('/:id', getCategoryById);
 
-// POST /api/categories (Admin only)
+// POST /api/categories
 router.post(
   '/',
-  authenticate,
-  authorize('ADMIN'),
   [
     body('name').trim().notEmpty().withMessage('Category name is required'),
     body('slug').trim().notEmpty().withMessage('Slug is required'),
@@ -29,10 +26,10 @@ router.post(
   createCategory
 );
 
-// PUT /api/categories/:id (Admin only)
-router.put('/:id', authenticate, authorize('ADMIN'), updateCategory);
+// PUT /api/categories/:id
+router.put('/:id', updateCategory);
 
-// DELETE /api/categories/:id (Admin only)
-router.delete('/:id', authenticate, authorize('ADMIN'), deleteCategory);
+// DELETE /api/categories/:id
+router.delete('/:id', deleteCategory);
 
 export default router;

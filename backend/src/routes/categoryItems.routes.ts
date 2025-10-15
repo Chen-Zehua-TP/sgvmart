@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { categoryItemsController } from '../controllers/categoryItems.controller';
-import { authenticate } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -8,7 +7,7 @@ const router = Router();
 router.get('/', categoryItemsController.getAllCategoryItems);
 router.get('/:category', categoryItemsController.getCategoryItems);
 
-// Admin routes - refresh category items
-router.post('/:category/refresh', authenticate, categoryItemsController.refreshCategoryItems);
+// Refresh category items
+router.post('/:category/refresh', categoryItemsController.refreshCategoryItems);
 
 export default router;

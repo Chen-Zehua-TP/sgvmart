@@ -1,14 +1,3 @@
-export interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  role: 'CUSTOMER' | 'ADMIN';
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface Category {
   id: string;
   name: string;
@@ -31,57 +20,15 @@ export interface Product {
   updatedAt: string;
 }
 
-export interface CartItem {
+export interface CategoryItem {
   id: string;
-  cartId: string;
-  productId: string;
-  product: Product;
-  quantity: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Cart {
-  id: string;
-  userId: string;
-  items: CartItem[];
-  total: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Address {
-  id: string;
-  userId: string;
-  street: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
-  isDefault: boolean;
-}
-
-export interface OrderItem {
-  id: string;
-  orderId: string;
-  productId: string;
-  product: Product;
-  quantity: number;
-  price: number;
-  createdAt: string;
-}
-
-export interface Order {
-  id: string;
-  userId: string;
-  addressId: string;
-  address: Address;
-  totalAmount: number;
-  status: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-  paymentMethod: string;
-  paymentStatus: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
-  paymentIntentId?: string;
-  items: OrderItem[];
+  category: string;
+  name: string;
+  keywords: string[];
+  imageUrl?: string;
+  description?: string;
+  sortOrder: number;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
