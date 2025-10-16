@@ -117,12 +117,15 @@ export default function ProductDetails() {
         ? `https://img.ggsel.ru/${productData.id_goods}/original/AUTOxAUTO/${productData.images}`
         : '';
       
-      // Clean HTML from description
+      // Clean HTML from description while preserving line breaks
       const cleanDescription = (html: string) => {
         return html
-          .replace(/<br\s*\/?>/gi, '\n')
-          .replace(/<[^>]*>/g, '')
-          .replace(/&nbsp;/g, ' ')
+          .replace(/<br\s*\/?>/gi, '\n') // Convert <br> to newlines
+          .replace(/<\/p>/gi, '\n\n') // Convert closing </p> to double newlines
+          .replace(/<p[^>]*>/gi, '') // Remove opening <p> tags
+          .replace(/<[^>]*>/g, '') // Remove all other HTML tags
+          .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+          .replace(/\n{3,}/g, '\n\n') // Limit consecutive newlines to 2
           .trim();
       };
       
@@ -274,10 +277,9 @@ export default function ProductDetails() {
               {product.description && (
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
-                  <div 
-                    className="text-gray-700 prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: product.description }}
-                  />
+                  <div className="text-gray-700 whitespace-pre-line">
+                    {product.description}
+                  </div>
                 </div>
               )}
 
