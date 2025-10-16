@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { categoryItemsService, CategoryItem } from '../services/categoryItems.service';
 
 // Central normalized product interface
@@ -42,81 +43,84 @@ export default function Home() {
   }, []);
 
   /**
-   * Parse GGSel HTML and scrape product data from the page
+   * Parse GGSel HTML and extract product data from Next.js embedded JSON
+   * GGSel is a Next.js app that embeds all page data in __NEXT_DATA__ script tag
    */
   const parseGGSelHTML = (htmlText: string): GGSelProduct[] => {
     try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlText, 'text/html');
-      const products: GGSelProduct[] = [];
+      console.log('Starting to parse GGSel HTML...');
       
-      // Find all product cards - adjust selectors based on actual GGSel HTML structure
-      // Common selectors for product cards: .product-card, .goods-item, [data-product], etc.
-      const productCards = doc.querySelectorAll('.goods-item, .product-card, [class*="product"]');
+      // Extract the Next.js data from the HTML
+      // Next.js apps embed their data in a script tag with id="__NEXT_DATA__"
+      const scriptMatch = htmlText.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/s);
       
-      productCards.forEach((card, index) => {
-        try {
-          // Extract product name
-          const nameElement = card.querySelector('[class*="name"], [class*="title"], h3, h4, a[class*="product"]');
-          const name = nameElement?.textContent?.trim() || '';
+      if (!scriptMatch) {
+        console.error('Could not find __NEXT_DATA__ script tag');
+        return [];
+      }
+
+      console.log('Found __NEXT_DATA__ script tag');
+      const jsonData = JSON.parse(scriptMatch[1]);
+      console.log('Parsed JSON data:', Object.keys(jsonData));
+      
+      // Navigate to the search results data
+      // Structure: { props: { pageProps: { searchGoods: { data: [...] } } } }
+      const searchData = jsonData?.props?.pageProps?.searchGoods?.data;
+      
+      if (!searchData || !Array.isArray(searchData)) {
+        console.error('Could not find searchGoods data in JSON');
+        console.log('Available pageProps keys:', Object.keys(jsonData?.props?.pageProps || {}));
+        return [];
+      }
+
+      console.log('Found search data with', searchData.length, 'products');
+      
+      // Map the API products to our normalized format
+      const products: GGSelProduct[] = searchData
+        .filter((item: any) => item.is_active && !item.hidden_from_search)
+        .map((item: any) => {
+          // Calculate discount and original price
+          let originalPrice: string | undefined;
+          let percentageSaved: string | undefined;
           
-          // Extract product URL
-          const linkElement = card.querySelector('a[href*="/catalog/product/"]') as HTMLAnchorElement;
-          const url = linkElement?.href || '';
-          
-          // Extract product image
-          const imageElement = card.querySelector('img') as HTMLImageElement;
-          const imageUrl = imageElement?.src || imageElement?.dataset?.src || '';
-          
-          // Extract price
-          const priceElement = card.querySelector('[class*="price"], .price, [class*="cost"]');
-          const priceText = priceElement?.textContent?.trim() || '';
-          
-          // Extract original price (if discounted)
-          const originalPriceElement = card.querySelector('[class*="old"], [class*="original"], [class*="crossed"]');
-          const originalPrice = originalPriceElement?.textContent?.trim();
-          
-          // Extract discount
-          const discountElement = card.querySelector('[class*="discount"], [class*="sale"], [class*="percent"]');
-          const discount = discountElement?.textContent?.trim();
-          
-          // Extract seller
-          const sellerElement = card.querySelector('[class*="seller"], [class*="vendor"]');
-          const seller = sellerElement?.textContent?.trim();
-          
-          // Extract rating
-          const ratingElement = card.querySelector('[class*="rating"], [class*="star"]');
-          const rating = ratingElement?.textContent?.trim() || ratingElement?.getAttribute('data-rating');
-          
-          // Extract sales count
-          const salesElement = card.querySelector('[class*="sold"], [class*="sales"]');
-          const salesCount = salesElement?.textContent?.trim();
-          
-          // Check if in stock
-          const stockElement = card.querySelector('[class*="stock"], [class*="available"]');
-          const inStock = !card.querySelector('[class*="out-of-stock"], [class*="unavailable"]');
-          
-          // Only add if we have at least name and URL
-          if (name && url) {
-            products.push({
-              id: `product-${index}`,
-              name,
-              price: priceText,
-              originalPrice,
-              imageUrl,
-              url: url.startsWith('http') ? url : `https://ggsel.net${url}`,
-              inStock,
-              rating,
-              seller,
-              discount,
-              salesCount,
-            });
+          // Check for category_discount (discount amount in USD)
+          if (item.category_discount && item.category_discount > 0) {
+            const originalVal = item.price_wmz_for_one + item.category_discount;
+            originalPrice = `$${originalVal.toFixed(2)}`;
+            const savings = (item.category_discount / originalVal) * 100;
+            percentageSaved = `-${Math.round(savings)}%`;
+          } 
+          // Check for sale percentage
+          else if (item.sale && item.sale > 0) {
+            const originalVal = item.price_wmz_for_one / (1 - item.sale / 100);
+            originalPrice = `$${originalVal.toFixed(2)}`;
+            percentageSaved = `-${item.sale}%`;
           }
-        } catch (err) {
-          console.error('Error parsing product card:', err);
-        }
-      });
+          
+          // Construct image URL
+          const imageUrl = item.images
+            ? `https://img.ggsel.ru/${item.id_goods}/original/AUTOxAUTO/${item.images}`
+            : '';
+          
+          // Construct product URL
+          const productUrl = `https://ggsel.net/en/catalog/product/${item.url}`;
+          
+          return {
+            id: item.id_goods.toString(),
+            name: item.name,
+            price: `$${item.price_wmz_for_one.toFixed(2)}`,
+            originalPrice,
+            percentageSaved,
+            imageUrl,
+            url: productUrl,
+            inStock: item.is_active && !item.is_preorder,
+            rating: item.rating ? item.rating.toString() : undefined,
+            seller: item.search_title || undefined,
+            salesCount: item.cnt_sell > 0 ? `${item.cnt_sell}` : undefined,
+          };
+        });
       
+      console.log('Successfully parsed', products.length, 'products');
       return products;
     } catch (err) {
       console.error('Error parsing GGSel HTML:', err);
@@ -147,9 +151,14 @@ export default function Home() {
     setSearchResults([]);
 
     try {
+      console.log('Searching for:', query);
+      
       // Use the HTML page endpoint and scrape the content
       const searchEndpoint = `https://ggsel.net/en/search/${encodeURIComponent(query)}`;
       const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(searchEndpoint)}`;
+      
+      console.log('Fetching from:', searchEndpoint);
+      console.log('Proxy URL:', proxyUrl);
       
       const response = await fetch(proxyUrl);
       
@@ -158,9 +167,12 @@ export default function Home() {
       }
 
       const htmlText = await response.text();
+      console.log('HTML received, length:', htmlText.length);
       
       // Parse HTML and scrape product data
       const products = parseGGSelHTML(htmlText);
+      console.log('Products parsed:', products.length);
+      console.log('First few products:', products.slice(0, 3));
       
       if (products.length === 0) {
         setError('No products found. Try a different search term.');
@@ -168,6 +180,7 @@ export default function Home() {
         setSearchResults(products);
       }
     } catch (err: any) {
+      console.error('Search error:', err);
       setError(err.message || 'Failed to search products');
     } finally {
       setLoading(false);
@@ -299,11 +312,9 @@ export default function Home() {
             {/* Products Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {searchResults.map((product) => (
-                <a
+                <Link
                   key={product.id}
-                  href={product.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  to={`/product?pid=${btoa(product.url)}`}
                   className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col"
                 >
                   {/* Product Image */}
@@ -332,12 +343,7 @@ export default function Home() {
                     <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-2 min-h-[2.5rem]">
                       {product.name}
                     </h3>
-                    
-                    {product.seller && (
-                      <p className="text-xs text-gray-500 mb-2">
-                        by {product.seller}
-                      </p>
-                    )}
+                  
 
                     {/* Category Badge
                     {product.category && (
@@ -385,7 +391,7 @@ export default function Home() {
                       )}
                     </div>
                   </div>
-                </a>
+                </Link>
               ))}
             </div>
           </div>
