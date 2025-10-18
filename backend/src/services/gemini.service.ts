@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Cerebras from '@cerebras/cerebras_cloud_sdk';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -10,28 +10,43 @@ interface CategoryItemSuggestion {
 }
 
 export class GeminiService {
-  private genAI: GoogleGenerativeAI;
-  private model: any;
+  private cerebras: Cerebras;
 
   constructor() {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.CEREBRAS_API_KEY;
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is not set in environment variables');
+      throw new Error('CEREBRAS_API_KEY is not set in environment variables');
     }
-    this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+    this.cerebras = new Cerebras({ apiKey });
   }
 
   /**
-   * Generate category items using Gemini API
+   * Generate category items using Cerebras API
    */
   async generateCategoryItems(category: string): Promise<CategoryItemSuggestion[]> {
     const prompt = this.buildPrompt(category);
 
     try {
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      const stream = await this.cerebras.chat.completions.create({
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a helpful assistant that generates structured JSON data for e-commerce categories. Always respond with valid JSON arrays only, no additional text.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        model: 'qwen-3-235b-a22b-instruct-2507',
+        stream: false,
+        max_completion_tokens: 20000,
+        temperature: 0.7,
+        top_p: 0.8
+      });
+
+      // Extract the response text
+      const text = (stream as any).choices[0]?.message?.content || '';
       
       // Parse the JSON response
       const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();

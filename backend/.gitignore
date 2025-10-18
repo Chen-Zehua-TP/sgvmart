@@ -29,3 +29,10 @@ yarn-error.log*
 
 # Prisma
 prisma/migrations/
+
+# SSL Certificates (keep private keys secure!)
+ssl/
+*.key
+*.pem
+*.crt
+*.csr

@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: sgvmart-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 697188
+      POSTGRES_DB: sgvmart
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - sgvmart-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sgvmart-backend
+    expose:
+      - "3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:697188@postgres:5432/sgvmart
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
+      - PORT=3000
+      - HOST=0.0.0.0
+      - NETWORK_IP=0.0.0.0
+      - NODE_ENV=production
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - CEREBRAS_API_KEY=${CEREBRAS_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sgvmart-network
+    restart: unless-stopped
+    command: sh -c "npx prisma migrate deploy && npm start"
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    container_name: sgvmart-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    networks:
+      - sgvmart-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+
+networks:
+  sgvmart-network:
+    driver: bridge
