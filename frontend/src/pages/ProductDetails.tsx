@@ -98,16 +98,24 @@ export default function ProductDetails() {
 
       console.log('Found product data:', productData.name);
       
-      // Calculate discount and original price
+      // Calculate your selling price: original + $0.50 + 20% margin
+      const basePriceFromGGSel = productData.price_wmz;
+      const feeAmount = 0.50;
+      const marginMultiplier = 1.20; // 20% margin
+      const yourSellingPrice = (basePriceFromGGSel + feeAmount) * marginMultiplier;
+      
+      // Calculate discount and original price (if available)
       let originalPrice: string | undefined;
       let percentageSaved: string | undefined;
       
       if (productData.old_price && productData.old_price > 0) {
-        originalPrice = `$${productData.old_price.toFixed(2)}`;
-        const savings = ((productData.old_price - productData.price_wmz) / productData.old_price) * 100;
+        // Apply same markup to old price for display
+        const markedUpOldPrice = (productData.old_price + feeAmount) * marginMultiplier;
+        originalPrice = `$${markedUpOldPrice.toFixed(2)}`;
+        const savings = ((markedUpOldPrice - yourSellingPrice) / markedUpOldPrice) * 100;
         percentageSaved = `-${Math.round(savings)}%`;
       } else if (productData.sale && productData.sale > 0) {
-        const originalVal = productData.price_wmz / (1 - productData.sale / 100);
+        const originalVal = yourSellingPrice / (1 - productData.sale / 100);
         originalPrice = `$${originalVal.toFixed(2)}`;
         percentageSaved = `-${productData.sale}%`;
       }
@@ -131,7 +139,7 @@ export default function ProductDetails() {
       
       return {
         name: productData.name,
-        price: `$${productData.price_wmz.toFixed(2)}`,
+        price: `$${yourSellingPrice.toFixed(2)}`,
         originalPrice,
         percentageSaved,
         imageUrl,

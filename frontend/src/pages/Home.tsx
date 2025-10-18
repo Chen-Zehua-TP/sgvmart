@@ -79,20 +79,27 @@ export default function Home() {
       const products: GGSelProduct[] = searchData
         .filter((item: any) => item.is_active && !item.hidden_from_search)
         .map((item: any) => {
+          // Calculate your selling price: original + $0.50 + 20% margin
+          const basePriceFromGGSel = item.price_wmz_for_one;
+          const feeAmount = 0.50;
+          const marginMultiplier = 1.20; // 20% margin
+          const yourSellingPrice = (basePriceFromGGSel + feeAmount) * marginMultiplier;
+          
           // Calculate discount and original price
           let originalPrice: string | undefined;
           let percentageSaved: string | undefined;
           
           // Check for category_discount (discount amount in USD)
           if (item.category_discount && item.category_discount > 0) {
-            const originalVal = item.price_wmz_for_one + item.category_discount;
-            originalPrice = `$${originalVal.toFixed(2)}`;
-            const savings = (item.category_discount / originalVal) * 100;
+            const ggselOriginalPrice = item.price_wmz_for_one + item.category_discount;
+            const markedUpOriginalPrice = (ggselOriginalPrice + feeAmount) * marginMultiplier;
+            originalPrice = `$${markedUpOriginalPrice.toFixed(2)}`;
+            const savings = ((markedUpOriginalPrice - yourSellingPrice) / markedUpOriginalPrice) * 100;
             percentageSaved = `-${Math.round(savings)}%`;
           } 
           // Check for sale percentage
           else if (item.sale && item.sale > 0) {
-            const originalVal = item.price_wmz_for_one / (1 - item.sale / 100);
+            const originalVal = yourSellingPrice / (1 - item.sale / 100);
             originalPrice = `$${originalVal.toFixed(2)}`;
             percentageSaved = `-${item.sale}%`;
           }
@@ -108,7 +115,7 @@ export default function Home() {
           return {
             id: item.id_goods.toString(),
             name: item.name,
-            price: `$${item.price_wmz_for_one.toFixed(2)}`,
+            price: `$${yourSellingPrice.toFixed(2)}`,
             originalPrice,
             percentageSaved,
             imageUrl,
