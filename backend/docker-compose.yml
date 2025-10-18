@@ -36,7 +36,9 @@ services:
       - NETWORK_IP=0.0.0.0
       - NODE_ENV=production
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
-      - CEREBRAS_API_KEY=${CEREBRAS_API_KEY}
+      - CEREBRAS_API_KEY=${CEREBRAS_API_KEY:-csk_t3j2t4xejpp63w8466vwer5evn43d58dyvkp2jjrvt9v4fxc}
+    env_file:
+      - .env
     depends_on:
       postgres:
         condition: service_healthy

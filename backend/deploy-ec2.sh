@@ -37,12 +37,6 @@ fi
 echo -e "${BLUE}Stopping existing containers...${NC}"
 docker-compose down || true
 
-# Pull latest changes (if using git)
-if [ -d ".git" ]; then
-    echo -e "${BLUE}Pulling latest code...${NC}"
-    git pull || true
-fi
-
 # Build and start services
 echo -e "${BLUE}Building and starting services...${NC}"
 docker-compose up -d --build
