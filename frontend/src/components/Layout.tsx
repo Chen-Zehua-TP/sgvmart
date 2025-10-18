@@ -13,7 +13,7 @@ export default function Layout({ children }: LayoutProps) {
         <nav className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="text-2xl font-bold text-blue-600">
-              SGVMart
+              GGVault
             </Link>
 
             <div className="flex items-center space-x-6">
