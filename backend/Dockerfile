@@ -27,6 +27,12 @@ WORKDIR /app
 # Install OpenSSL and Certbot for HTTPS certificate management
 RUN apk add --no-cache openssl libc6-compat certbot curl
 
+# Create necessary directories with proper permissions (as root)
+RUN mkdir -p /var/log/letsencrypt /var/lib/letsencrypt /etc/letsencrypt && \
+    chmod -R 777 /var/log/letsencrypt /var/lib/letsencrypt /etc/letsencrypt && \
+    mkdir -p /var/www/certbot && \
+    chmod -R 777 /var/www/certbot
+
 # Copy package files and prisma schema
 COPY package*.json ./
 COPY prisma ./prisma/
