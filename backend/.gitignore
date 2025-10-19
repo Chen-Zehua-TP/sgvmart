@@ -27,9 +27,6 @@ yarn-error.log*
 *.sln
 *.sw?
 
-# Prisma
-prisma/migrations/
-
 # SSL Certificates (keep private keys secure!)
 ssl/
 *.key

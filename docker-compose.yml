@@ -53,14 +53,10 @@ services:
     command: >
       sh -c "
       echo '⏳ Waiting for database to be ready...' &&
-      for i in {1..30}; do
-        if npx prisma migrate deploy 2>/dev/null; then
-          echo '✅ Migrations completed successfully' &&
-          break
-        fi
-        echo \"⏳ Migration attempt \$i/30 - waiting 2s...\" &&
-        sleep 2
-      done &&
+      sleep 3 &&
+      echo '🔄 Applying database migrations...' &&
+      npx prisma migrate deploy &&
+      echo '✅ Migrations completed successfully' &&
       echo '🚀 Starting backend server...' &&
       node dist/server.js
       "
