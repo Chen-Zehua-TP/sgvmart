@@ -40,8 +40,14 @@ services:
       - NODE_ENV=production
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
       - CEREBRAS_API_KEY=${CEREBRAS_API_KEY}
-    expose:
-      - "3000"
+      - DOMAIN=${DOMAIN:-ggvault.shop}
+      - EMAIL=${EMAIL:-admin@ggvault.shop}
+    ports:
+      - "3000:3000"
+      - "3443:443"
+    volumes:
+      - letsencrypt-data:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
     networks:
       - sgvmart-network
     healthcheck:
@@ -58,7 +64,7 @@ services:
       npx prisma migrate deploy &&
       echo '✅ Migrations completed successfully' &&
       echo '🚀 Starting backend server...' &&
-      node dist/server.js
+      /entrypoint.sh node dist/server.js
       "
 
   # Frontend (React + NGINX)
