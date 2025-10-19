@@ -24,8 +24,8 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install OpenSSL for Prisma (required for Alpine)
-RUN apk add --no-cache openssl libc6-compat
+# Install OpenSSL and Certbot for HTTPS certificate management
+RUN apk add --no-cache openssl libc6-compat certbot curl
 
 # Copy package files and prisma schema
 COPY package*.json ./
@@ -40,6 +40,10 @@ RUN npx prisma generate
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 
+# Copy entrypoint script for certificate setup
+COPY backend-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
@@ -50,12 +54,13 @@ RUN chown -R nodejs:nodejs /app
 # Switch to non-root user
 USER nodejs
 
-# Expose port
-EXPOSE 3000
+# Expose ports - 3000 for HTTP, 3443 for HTTPS
+EXPOSE 3000 3443
 
-# Health check
+# Health check - check HTTP port
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+    CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
 
-# Start the application
+# Start with entrypoint script for certificate handling
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["node", "dist/server.js"]

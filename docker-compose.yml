@@ -40,8 +40,15 @@ services:
       - NODE_ENV=production
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
       - CEREBRAS_API_KEY=${CEREBRAS_API_KEY}
+      - DOMAIN=ggvault.shop
+      - EMAIL=admin@ggvault.shop
+      - USE_HTTPS=true
     expose:
       - "3000"
+    ports:
+      - "3443:3443"
+    volumes:
+      - letsencrypt-data:/etc/letsencrypt
     networks:
       - sgvmart-network
     healthcheck:
