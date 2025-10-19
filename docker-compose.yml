@@ -75,11 +75,20 @@ services:
       - "443:443"
     environment:
       - NODE_ENV=production
+      - DOMAIN=ggvault.shop
+      - EMAIL=admin@ggvault.shop
+    volumes:
+      - letsencrypt-data:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
     networks:
       - sgvmart-network
 
 volumes:
   postgres-data:
+    driver: local
+  letsencrypt-data:
+    driver: local
+  certbot-webroot:
     driver: local
 
 networks:

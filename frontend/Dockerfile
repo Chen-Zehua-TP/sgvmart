@@ -18,18 +18,19 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine
 
-# Install OpenSSL
-RUN apk add --no-cache openssl
+# Install Certbot and dependencies
+RUN apk add --no-cache \
+    certbot \
+    certbot-nginx \
+    openssl \
+    curl
 
-# Create SSL directory
-RUN mkdir -p /etc/nginx/ssl
+# Create SSL and certbot directories
+RUN mkdir -p /etc/nginx/ssl /etc/letsencrypt/live /var/www/certbot
 
-# Generate self-signed SSL certificate (for development)
-# Replace with real certificates in production
-RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    -keyout /etc/nginx/ssl/key.pem \
-    -out /etc/nginx/ssl/cert.pem \
-    -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
+# Create entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -40,5 +41,5 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Expose ports 80 (redirect) and 443 (HTTPS)
 EXPOSE 80 443
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start with entrypoint script
+ENTRYPOINT ["/entrypoint.sh"]
