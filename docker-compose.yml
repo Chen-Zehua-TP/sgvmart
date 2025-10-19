@@ -1,13 +1,13 @@
-version: '3.8'
-
 services:
+  # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
     container_name: sgvmart-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 697188
-      POSTGRES_DB: sgvmart
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-697188}
+      POSTGRES_DB: ${DB_NAME:-sgvmart}
     ports:
       - "5432:5432"
     volumes:
@@ -20,15 +20,18 @@ services:
       timeout: 5s
       retries: 5
 
+  # Backend API
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     container_name: sgvmart-backend
-    expose:
-      - "3000"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://postgres:697188@postgres:5432/sgvmart
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-697188}@postgres:5432/${DB_NAME:-sgvmart}
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
       - PORT=3000
@@ -37,30 +40,32 @@ services:
       - NODE_ENV=production
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
       - CEREBRAS_API_KEY=${CEREBRAS_API_KEY}
-    depends_on:
-      postgres:
-        condition: service_healthy
+    expose:
+      - "3000"
     networks:
       - sgvmart-network
-    restart: unless-stopped
-    command: sh -c "npx prisma migrate deploy && npm start"
+    command: sh -c "npx prisma migrate deploy && node dist/server.js"
 
-  nginx:
+  # Frontend (React + NGINX)
+  frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.nginx
-    container_name: sgvmart-nginx
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sgvmart-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
     ports:
       - "80:80"
       - "443:443"
-    depends_on:
-      - backend
+    environment:
+      - NODE_ENV=production
     networks:
       - sgvmart-network
-    restart: unless-stopped
 
 volumes:
   postgres-data:
+    driver: local
 
 networks:
   sgvmart-network:
